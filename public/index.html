@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dynamic Chat App</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f0f0f0;
+    }
+    #container {
+      display: flex;
+      height: 100vh;
+    }
+    #userList {
+      width: 25%;
+      background: #333;
+      color: white;
+      padding: 10px;
+      overflow-y: auto;
+    }
+    #userList div {
+      padding: 10px;
+      border-bottom: 1px solid #444;
+      cursor: pointer;
+    }
+    #userList .active {
+      background: #555;
+    }
+    #chatSection {
+      width: 75%;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+    #chat {
+      list-style: none;
+      padding: 0;
+      flex: 1;
+      overflow-y: auto;
+    }
+    #chat li {
+      margin: 5px 0;
+    }
+    #messageBar {
+      display: flex;
+      margin-top: 10px;
+    }
+    #messageBar input {
+      flex: 1;
+      padding: 10px;
+    }
+    #messageBar button {
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <div id="userList"></div>
+    <div id="chatSection">
+      <h2>Welcome to Chat App</h2>
+      <ul id="chat"></ul>
+      <div id="messageBar">
+        <input type="text" id="message" placeholder="Type a message..." />
+        <button id="send">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    let myUsername = '';
+    let selectedUser = '';
+
+    // Prompt for username
+    while (!myUsername) {
+      myUsername = prompt("Enter your username").trim();
+    }
+    socket.emit('set username', myUsername);
+
+    const userList = document.getElementById('userList');
+    const chat = document.getElementById('chat');
+    const messageInput = document.getElementById('message');
+    const sendBtn = document.getElementById('send');
+
+    socket.on('user list', (usernames) => {
+      userList.innerHTML = '';
+      usernames.forEach((user) => {
+        if (user === myUsername) return;
+        const div = document.createElement('div');
+        div.textContent = user;
+        div.onclick = () => {
+          selectedUser = user;
+          Array.from(userList.children).forEach(el => el.classList.remove('active'));
+          div.classList.add('active');
+        };
+        userList.appendChild(div);
+      });
+    });
+
+    sendBtn.onclick = () => {
+      const message = messageInput.value.trim();
+      if (message && selectedUser) {
+        socket.emit('private message', { to: selectedUser, message });
+        addMessage(`You to ${selectedUser}: ${message}`);
+        messageInput.value = '';
+      }
+    };
+
+    socket.on('private message', (data) => {
+      addMessage(`Private from ${data.from}: ${data.message}`, 'blue');
+    });
+
+    function addMessage(msg, color = '') {
+      const li = document.createElement('li');
+      li.textContent = msg;
+      if (color) li.style.color = color;
+      chat.appendChild(li);
+      chat.scrollTop = chat.scrollHeight;
+    }
+  </script>
+</body>
+</html>
