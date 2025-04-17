@@ -1,3 +1,4 @@
+// 🚀 WhatsApp-style Chat App Server (with Typing Indicator)
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -30,6 +31,15 @@ io.on('connection', (socket) => {
       io.to(recipientSocketId).emit('private message', {
         from: users[socket.id],
         message,
+      });
+    }
+  });
+
+  socket.on('typing', ({ to }) => {
+    const recipientSocketId = Object.keys(users).find(id => users[id] === to);
+    if (recipientSocketId) {
+      io.to(recipientSocketId).emit('typing', {
+        from: users[socket.id]
       });
     }
   });

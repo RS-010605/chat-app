@@ -1,71 +1,122 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="light">
 <head>
-  <meta charset="UTF-8" />
-  <title>Dynamic Chat App</title>
+  <meta charset="UTF-8">
+  <title>WhatsApp Chat Clone</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <style>
     body {
-      font-family: sans-serif;
-      margin: 0;
-      padding: 0;
-      background: #f0f0f0;
+      transition: background 0.3s, color 0.3s;
     }
-    #container {
-      display: flex;
-      height: 100vh;
+    .chat-container {
+      height: 90vh;
+      overflow: hidden;
+      border-radius: 15px;
+      backdrop-filter: blur(6px);
+      animation: float-in 0.6s ease-out;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
+    }
+    @keyframes float-in {
+      from {
+        transform: translateY(40px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
     }
     #userList {
-      width: 25%;
-      background: #333;
-      color: white;
-      padding: 10px;
+      height: 100%;
       overflow-y: auto;
+      border-right: 1px solid var(--bs-border-color);
     }
-    #userList div {
-      padding: 10px;
-      border-bottom: 1px solid #444;
+    #chatBox {
+      height: calc(100% - 110px);
+      overflow-y: auto;
+      padding: 1rem;
+      scroll-behavior: smooth;
+    }
+    .message {
+      max-width: 80%;
+      padding: 12px 16px;
+      border-radius: 20px;
+      margin-bottom: 14px;
+      word-wrap: break-word;
+      box-shadow: 0 8px 18px rgba(0,0,0,0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .message:hover {
+      transform: scale(1.03);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.15);
+    }
+    .sent {
+      background-color: var(--bs-success-bg-subtle);
+      color: var(--bs-body-color);
+      align-self: flex-end;
+    }
+    .received {
+      background-color: var(--bs-secondary-bg);
+      color: var(--bs-body-color);
+      align-self: flex-start;
+    }
+    .chat-footer {
+      padding: 1rem;
+      border-top: 1px solid var(--bs-border-color);
+      background-color: var(--bs-body-bg);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 -4px 8px rgba(0,0,0,0.03);
+    }
+    .user-item {
+      transition: all 0.2s ease;
       cursor: pointer;
+      border-radius: 8px;
+      background-color: var(--bs-light);
+      color: var(--bs-body-color);
     }
-    #userList .active {
-      background: #555;
+    .user-item:hover {
+      background-color: var(--bs-secondary-bg);
+      transform: translateX(5px);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
     }
-    #chatSection {
-      width: 75%;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
+    .typing-indicator {
+      font-size: 0.9rem;
+      color: var(--bs-secondary-color);
     }
-    #chat {
-      list-style: none;
-      padding: 0;
-      flex: 1;
-      overflow-y: auto;
-    }
-    #chat li {
-      margin: 5px 0;
-    }
-    #messageBar {
-      display: flex;
-      margin-top: 10px;
-    }
-    #messageBar input {
-      flex: 1;
-      padding: 10px;
-    }
-    #messageBar button {
-      padding: 10px;
+    @media (max-width: 768px) {
+      .chat-container {
+        height: auto;
+      }
+      #chatBox {
+        height: 300px;
+      }
     }
   </style>
 </head>
 <body>
-  <div id="container">
-    <div id="userList"></div>
-    <div id="chatSection">
-      <h2>Welcome to Chat App</h2>
-      <ul id="chat"></ul>
-      <div id="messageBar">
-        <input type="text" id="message" placeholder="Type a message..." />
-        <button id="send">Send</button>
+  <div class="container-fluid py-3">
+    <div class="d-flex justify-content-between mb-3 align-items-center px-2 px-md-4">
+      <h4 class="mb-0">💬 WhatsApp Clone</h4>
+      <button id="toggleMode" class="btn btn-sm btn-outline-dark">🌙</button>
+    </div>
+
+    <div class="row chat-container mx-1 mx-md-4 shadow-lg bg-body">
+      <div class="col-12 col-md-4 border-end p-3" id="userList"></div>
+
+      <div class="col-12 col-md-8 d-flex flex-column">
+        <div class="border-bottom px-3 py-2 d-flex justify-content-between align-items-center bg-body-tertiary">
+          <h6 id="chatHeader" class="mb-0">Select a user to chat</h6>
+          <span id="typingStatus" class="typing-indicator"></span>
+        </div>
+
+        <div id="chatBox" class="flex-grow-1 d-flex flex-column bg-body"></div>
+
+        <div class="chat-footer d-flex">
+          <input id="messageInput" class="form-control me-2" placeholder="Type a message...">
+          <button id="sendBtn" class="btn btn-success">Send</button>
+        </div>
       </div>
     </div>
   </div>
@@ -73,55 +124,101 @@
   <script src="/socket.io/socket.io.js"></script>
   <script>
     const socket = io();
-    let myUsername = '';
-    let selectedUser = '';
-
-    // Prompt for username
-    while (!myUsername) {
-      myUsername = prompt("Enter your username").trim();
+    let myUsername = prompt("Enter your name");
+    if (!myUsername) {
+      myUsername = "Guest_" + Math.floor(Math.random() * 1000);
     }
-    socket.emit('set username', myUsername);
+    myUsername = myUsername.trim();
+
+    let selectedUser = '';
+    let chatData = JSON.parse(localStorage.getItem('chatData') || '{}');
 
     const userList = document.getElementById('userList');
-    const chat = document.getElementById('chat');
-    const messageInput = document.getElementById('message');
-    const sendBtn = document.getElementById('send');
+    const chatBox = document.getElementById('chatBox');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const chatHeader = document.getElementById('chatHeader');
+    const typingStatus = document.getElementById('typingStatus');
+    const toggleBtn = document.getElementById('toggleMode');
 
-    socket.on('user list', (usernames) => {
+    socket.emit('set username', myUsername);
+
+    socket.on('username confirmed', (confirmedUsername) => {
+      myUsername = confirmedUsername;
+    });
+
+    socket.on('user list', (users) => {
       userList.innerHTML = '';
-      usernames.forEach((user) => {
+      users.forEach(user => {
         if (user === myUsername) return;
         const div = document.createElement('div');
+        div.className = 'user-item p-2 mb-2 shadow-sm';
         div.textContent = user;
         div.onclick = () => {
           selectedUser = user;
-          Array.from(userList.children).forEach(el => el.classList.remove('active'));
-          div.classList.add('active');
+          chatHeader.textContent = `Chat with ${user}`;
+          renderChat(user);
         };
         userList.appendChild(div);
       });
     });
 
+    function renderChat(user) {
+      chatBox.innerHTML = '';
+      const messages = chatData[user] || [];
+      messages.forEach(({ from, text, time }) => {
+        const div = document.createElement('div');
+        div.className = `d-flex message ${from === 'me' ? 'sent ms-auto' : 'received me-auto'}`;
+        div.innerHTML = `<div>${text}<div class='text-muted small text-end mt-1'>${time}</div></div>`;
+        chatBox.appendChild(div);
+      });
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function saveChat() {
+      localStorage.setItem('chatData', JSON.stringify(chatData));
+    }
+
     sendBtn.onclick = () => {
-      const message = messageInput.value.trim();
-      if (message && selectedUser) {
-        socket.emit('private message', { to: selectedUser, message });
-        addMessage(`You to ${selectedUser}: ${message}`);
+      const text = messageInput.value.trim();
+      if (text && selectedUser) {
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        socket.emit('private message', { to: selectedUser, message: text });
+        chatData[selectedUser] = chatData[selectedUser] || [];
+        chatData[selectedUser].push({ from: 'me', text, time });
+        saveChat();
+        renderChat(selectedUser);
         messageInput.value = '';
       }
     };
 
-    socket.on('private message', (data) => {
-      addMessage(`Private from ${data.from}: ${data.message}`, 'blue');
+    messageInput.addEventListener('keypress', () => {
+      if (selectedUser) {
+        socket.emit('typing', { to: selectedUser });
+      }
     });
 
-    function addMessage(msg, color = '') {
-      const li = document.createElement('li');
-      li.textContent = msg;
-      if (color) li.style.color = color;
-      chat.appendChild(li);
-      chat.scrollTop = chat.scrollHeight;
-    }
+    socket.on('typing', ({ from }) => {
+      if (from === selectedUser) {
+        typingStatus.textContent = `${from} is typing...`;
+        setTimeout(() => typingStatus.textContent = '', 2000);
+      }
+    });
+
+    socket.on('private message', ({ from, message }) => {
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      chatData[from] = chatData[from] || [];
+      chatData[from].push({ from: 'them', text: message, time });
+      saveChat();
+      if (from === selectedUser) renderChat(from);
+    });
+
+    toggleBtn.onclick = () => {
+      const htmlTag = document.documentElement;
+      const current = htmlTag.getAttribute("data-bs-theme") === "dark" ? "light" : "dark";
+      htmlTag.setAttribute("data-bs-theme", current);
+      toggleBtn.textContent = current === "dark" ? "☀️" : "🌙";
+    };
   </script>
 </body>
 </html>
